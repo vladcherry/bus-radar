@@ -134,13 +134,29 @@ function initMap() {
   busLayer = L.layerGroup().addTo(map);
 }
 
+// Front-view bus glyph drawn in the marker's currentColor
+const BUS_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5 4 h14 a1.5 1.5 0 0 1 1.5 1.5 V17 a1.5 1.5 0 0 1 -1.5 1.5 H5 A1.5 1.5 0 0 1 3.5 17 V5.5 A1.5 1.5 0 0 1 5 4 Z"/>
+  <rect x="6.5" y="7" width="11" height="6" rx="0.8"/>
+  <circle cx="8" cy="21" r="1.3" fill="currentColor" stroke="none"/>
+  <circle cx="16" cy="21" r="1.3" fill="currentColor" stroke="none"/>
+</svg>`;
+
+function stopIcon(selected) {
+  const size = selected ? 30 : 20;
+  return L.divIcon({
+    className: '',
+    html: `<div class="stop-icon${selected ? ' selected' : ''}" style="width:${size}px;height:${size}px">${BUS_SVG}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 function drawStops() {
   stopsLayer.clearLayers();
   for (const s of stops) {
-    const marker = L.circleMarker([s.lat, s.lon], {
-      radius: 6, weight: 2, color: '#d32f2f', fillColor: '#fff', fillOpacity: .9,
-    });
-    marker.bindTooltip(`${s.cod} · ${s.ds}`, { direction: 'top', offset: [0, -6] });
+    const marker = L.marker([s.lat, s.lon], { icon: stopIcon(false) });
+    marker.bindTooltip(`${s.cod} · ${s.ds}`, { direction: 'top', offset: [0, -10] });
     marker.on('click', () => selectStop(s.cod));
     stopsLayer.addLayer(marker);
   }
@@ -149,9 +165,7 @@ function drawStops() {
 function highlightStop(s) {
   if (selectedMarker) { map.removeLayer(selectedMarker); selectedMarker = null; }
   if (!s) return;
-  selectedMarker = L.circleMarker([s.lat, s.lon], {
-    radius: 10, weight: 3, color: '#1565c0', fillColor: '#42a5f5', fillOpacity: .9,
-  }).addTo(map);
+  selectedMarker = L.marker([s.lat, s.lon], { icon: stopIcon(true), zIndexOffset: 500 }).addTo(map);
   map.setView([s.lat, s.lon], Math.max(map.getZoom(), 15));
 }
 

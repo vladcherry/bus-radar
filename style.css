@@ -205,6 +205,20 @@ button:active { transform: scale(.97); }
 .credits a { color: inherit; }
 
 /* Map markers */
+.stop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #d32f2f;
+  border: 2px solid #d32f2f;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  padding: 2px;
+}
+.stop-icon svg { width: 100%; height: 100%; }
+.stop-icon.selected { color: #1565c0; border-color: #1565c0; border-width: 3px; }
+
 .stop-marker-label { background: none; border: none; }
 .bus-icon {
   display: flex;
