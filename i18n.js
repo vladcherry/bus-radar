@@ -1,41 +1,49 @@
-/* Bus Radar localization: es, va (valencià), en, uk, ru */
+/* Bus Radar localization: es, va (valencià), en, uk */
 'use strict';
 
-const LANGS = {
-  es: { flag: '🇪🇸', name: 'Español' },
-  va: { flag: 'senyera', name: 'Valencià' },
-  en: { flag: '🇬🇧', name: 'English' },
-  uk: { flag: '🇺🇦', name: 'Українська' },
-  ru: { flag: '🇷🇺', name: 'Русский' },
+/* All flags are inline SVG: emoji flags do not render on Windows (fall back to letter codes) */
+const FLAG_BODIES = {
+  es: `<rect width="30" height="20" fill="#AA151B"/>
+       <rect y="5" width="30" height="10" fill="#F1BF00"/>`,
+  va: `<rect width="30" height="20" fill="#FCDD09"/>
+       <rect y="2.2" width="30" height="2.2" fill="#DA121A"/>
+       <rect y="6.6" width="30" height="2.2" fill="#DA121A"/>
+       <rect y="11" width="30" height="2.2" fill="#DA121A"/>
+       <rect y="15.4" width="30" height="2.2" fill="#DA121A"/>
+       <rect width="7.5" height="20" fill="#0F47AF"/>`,
+  en: `<rect width="30" height="20" fill="#012169"/>
+       <path d="M0,0 L30,20 M30,0 L0,20" stroke="#fff" stroke-width="4"/>
+       <path d="M0,0 L30,20 M30,0 L0,20" stroke="#C8102E" stroke-width="1.8"/>
+       <path d="M15,0 V20 M0,10 H30" stroke="#fff" stroke-width="6.5"/>
+       <path d="M15,0 V20 M0,10 H30" stroke="#C8102E" stroke-width="3.8"/>`,
+  uk: `<rect width="30" height="10" fill="#0057B7"/>
+       <rect y="10" width="30" height="10" fill="#FFD700"/>`,
 };
 
-/* The Valencian senyera has no emoji, so it is drawn as inline SVG */
-const SENYERA_SVG = `<svg viewBox="0 0 30 20" width="1.15em" height=".78em" style="vertical-align:-.05em;border-radius:2px">
-  <rect width="30" height="20" fill="#FCDD09"/>
-  <rect y="2.2" width="30" height="2.2" fill="#DA121A"/>
-  <rect y="6.6" width="30" height="2.2" fill="#DA121A"/>
-  <rect y="11" width="30" height="2.2" fill="#DA121A"/>
-  <rect y="15.4" width="30" height="2.2" fill="#DA121A"/>
-  <rect width="7.5" height="20" fill="#0F47AF"/>
-</svg>`;
+const LANGS = {
+  es: { name: 'Español' },
+  va: { name: 'Valencià' },
+  en: { name: 'English' },
+  uk: { name: 'Українська' },
+};
 
 function langFlag(code) {
-  return LANGS[code].flag === 'senyera' ? SENYERA_SVG : LANGS[code].flag;
+  return `<svg viewBox="0 0 30 20" width="1.15em" height=".78em" style="vertical-align:-.05em;border-radius:2px">${FLAG_BODIES[code]}</svg>`;
 }
 
 const TOWN_NAMES = {
-  BND: { latin: 'Benidorm', ru: 'Бенидорм', uk: 'Бенідорм' },
-  VIL: { latin: 'La Vila Joiosa', ru: 'Ла-Вила-Жойоза', uk: 'Ла-Віла-Жойоза' },
-  FIN: { latin: 'Finestrat', ru: 'Финестрат', uk: 'Фінестрат' },
-  NUC: { latin: 'La Nucía', ru: 'Ла-Нусия', uk: 'Ла-Нусія' },
-  ALT: { latin: 'Altea', ru: 'Альтеа', uk: 'Альтеа' },
-  ALF: { latin: "l'Alfàs del Pi / Albir", ru: 'Альфас-дель-Пи / Альбир', uk: 'Альфас-дель-Пі / Альбір' },
-  POL: { latin: 'Polop', ru: 'Полоп', uk: 'Полоп' },
-  REL: { latin: 'Relleu', ru: 'Рельеу', uk: 'Рельєу' },
-  ORX: { latin: 'Orxeta', ru: 'Орчета', uk: 'Орчета' },
-  SEL: { latin: 'Sella', ru: 'Селья', uk: 'Селья' },
-  GUA: { latin: 'El Castell de Guadalest', ru: 'Гуадалест', uk: 'Гуадалест' },
-  CSA: { latin: 'CSA', ru: 'CSA', uk: 'CSA' },
+  BND: { latin: 'Benidorm', uk: 'Бенідорм' },
+  VIL: { latin: 'La Vila Joiosa', uk: 'Ла-Віла-Жойоза' },
+  FIN: { latin: 'Finestrat', uk: 'Фінестрат' },
+  NUC: { latin: 'La Nucía', uk: 'Ла-Нусія' },
+  ALT: { latin: 'Altea', uk: 'Альтеа' },
+  ALF: { latin: "l'Alfàs del Pi / Albir", uk: 'Альфас-дель-Пі / Альбір' },
+  POL: { latin: 'Polop', uk: 'Полоп' },
+  REL: { latin: 'Relleu', uk: 'Рельєу' },
+  ORX: { latin: 'Orxeta', uk: 'Орчета' },
+  SEL: { latin: 'Sella', uk: 'Селья' },
+  GUA: { latin: 'El Castell de Guadalest', uk: 'Гуадалест' },
+  CSA: { latin: 'CSA', uk: 'CSA' },
 };
 
 const I18N = {
@@ -119,26 +127,6 @@ const I18N = {
     stopNo: 'Зупинка',
     credits: 'Дані: {link} · неофіційний застосунок · оновлення кожні 15 с',
   },
-  ru: {
-    near: '📍 Рядом',
-    searchPlaceholder: 'Поиск остановки: название или номер…',
-    hintStart: 'Нажмите «📍 Рядом», выберите остановку на карте или найдите её по названию.',
-    geoUnsupported: 'Геолокация не поддерживается браузером.',
-    geoFail: 'Не удалось определить местоположение: ',
-    youAreHere: 'Вы здесь',
-    lines: 'Линии',
-    back: '‹ Остановки',
-    refresh: 'Обновить',
-    loading: 'Загрузка…',
-    updatedAt: (t) => `Обновлено в ${t} · автообновление каждые 15 с`,
-    loadError: (e) => `Ошибка загрузки данных: ${e} — повтор через 15 с`,
-    stopsLoadError: 'Не удалось загрузить список остановок: ',
-    noBuses: 'Пока нет автобусов в пути к этой остановке.',
-    thLine: 'Линия', thEta: 'Прибытие', thDest: 'Направление',
-    now: 'сейчас', min: 'мин', m: 'м', km: 'км',
-    stopNo: 'Остановка',
-    credits: 'Данные: {link} · неофициальное приложение · обновление каждые 15 с',
-  },
 };
 
 function detectLang() {
@@ -146,8 +134,7 @@ function detectLang() {
   if (saved && I18N[saved]) return saved;
   for (const raw of navigator.languages || [navigator.language || 'en']) {
     const l = raw.toLowerCase();
-    if (l.startsWith('uk')) return 'uk';
-    if (l.startsWith('ru')) return 'ru';
+    if (l.startsWith('uk') || l.startsWith('ru')) return 'uk';
     if (l.startsWith('ca')) return 'va'; // Catalan/Valencian
     if (l.startsWith('es')) return 'es';
     if (l.startsWith('en')) return 'en';
