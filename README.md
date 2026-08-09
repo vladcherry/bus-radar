@@ -14,7 +14,7 @@ and when they arrive at a chosen stop. Coverage: Altea — Albir — Benidorm
 - 🗺 Map of all stops (Leaflet + OpenStreetMap)
 - ⏱ Real-time arrivals board, auto-refreshing every 15 seconds
 - 🚌 Live positions of approaching buses on the map
-- 🌐 5 languages (Español, Valencià, English, Українська, Русский) — auto-detected
+- 🌐 4 languages (Español, Valencià, English, Українська) — auto-detected
   from the browser locale, switchable via the flag menu, choice saved in `localStorage`
 - 🔗 Shareable stop links: `#/stop/510`
 

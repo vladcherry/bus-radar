@@ -51,7 +51,7 @@ function esc(s) {
 function townName(code) {
   const n = TOWN_NAMES[code];
   if (!n) return code || '';
-  return (lang === 'ru' || lang === 'uk') ? n[lang] : n.latin;
+  return lang === 'uk' ? n.uk : n.latin;
 }
 
 function cacheGet(key) {

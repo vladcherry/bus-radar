@@ -62,6 +62,7 @@ button:active { transform: scale(.97); }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .lang { position: relative; }
 .btn-lang { white-space: nowrap; font-weight: 600; }
+.lang-menu[hidden] { display: none; } /* the hidden attribute must beat display:flex below */
 .lang-menu {
   position: absolute;
   right: 0;
