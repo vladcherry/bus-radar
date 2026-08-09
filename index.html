@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bus Radar — Altea · Albir · Benidorm</title>
+<meta name="description" content="Автобусы Avanzagrupo (Benidorm) в реальном времени: где едет автобус и когда прибудет на остановку.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">🚌 Bus Radar <span class="sub">Altea · Albir · Benidorm</span></div>
+  <button id="btn-locate" class="btn-locate" title="Найти ближайшие остановки">📍 Рядом</button>
+</header>
+
+<div id="map"></div>
+
+<main class="panel">
+
+  <!-- Экран выбора остановки -->
+  <section id="view-stops">
+    <div class="searchbox">
+      <input id="search" type="search" placeholder="Поиск остановки: название или номер…"
+             autocomplete="off" inputmode="search">
+    </div>
+    <div id="stops-hint" class="hint">Нажмите «📍 Рядом», выберите остановку на карте или найдите её по названию.</div>
+    <ul id="stops-list" class="stops-list"></ul>
+  </section>
+
+  <!-- Экран табло прибытий -->
+  <section id="view-arrivals" hidden>
+    <div class="arrivals-head">
+      <button id="btn-back" class="btn-back">‹ Остановки</button>
+      <div class="stop-title">
+        <div id="stop-name" class="stop-name"></div>
+        <div class="stop-meta">
+          <span id="stop-code" class="stop-code"></span>
+          <span id="stop-lines" class="stop-lines"></span>
+        </div>
+      </div>
+      <button id="btn-refresh" class="btn-refresh" title="Обновить">⟳</button>
+    </div>
+    <div id="arrivals-status" class="hint"></div>
+    <table class="arrivals" id="arrivals-table" hidden>
+      <thead><tr><th>Линия</th><th>Прибытие</th><th>Направление</th></tr></thead>
+      <tbody id="arrivals-body"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer class="credits">
+  Данные: <a href="https://consultas.avanzagrupo.com" target="_blank" rel="noopener">Avanza Grupo</a> ·
+  неофициальное приложение · обновление каждые 15 с
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
