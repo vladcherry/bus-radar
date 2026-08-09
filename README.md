@@ -1,47 +1,54 @@
 # 🚌 Bus Radar — Altea · Albir · Benidorm
 
-Неофициальное веб-приложение, показывающее **в реальном времени**, где находятся автобусы
-[Avanza Grupo](https://consultas.avanzagrupo.com) (Llorente Bus Benidorm) и когда они прибудут
-на выбранную остановку. Район: Альтеа — Альбир — Бенидорм (а также Финестрат, Ла-Вила-Жойоза, Ла-Нусия и окрестности).
+An unofficial web app that shows **in real time** where the
+[Avanza Grupo](https://consultas.avanzagrupo.com) (Llorente Bus Benidorm) buses are
+and when they arrive at a chosen stop. Coverage: Altea — Albir — Benidorm
+(plus Finestrat, La Vila Joiosa, La Nucía and nearby towns).
 
-## Возможности
+**Live:** https://vladcherry.github.io/bus-radar/
 
-- 📍 Поиск ближайших остановок по геолокации
-- 🔎 Поиск остановки по названию или номеру
-- 🗺 Карта всех остановок (Leaflet + OpenStreetMap)
-- ⏱ Табло прибытий в реальном времени с автообновлением каждые 15 секунд
-- 🚌 Живые позиции приближающихся автобусов на карте
-- 🔗 Ссылки на остановки можно шарить: `#/stop/510`
+## Features
 
-## Как это работает
+- 📍 Nearest stops via geolocation
+- 🔎 Stop search by name or number
+- 🗺 Map of all stops (Leaflet + OpenStreetMap)
+- ⏱ Real-time arrivals board, auto-refreshing every 15 seconds
+- 🚌 Live positions of approaching buses on the map
+- 🌐 5 languages (Español, Valencià, English, Українська, Русский) — auto-detected
+  from the browser locale, switchable via the flag menu, choice saved in `localStorage`
+- 🔗 Shareable stop links: `#/stop/510`
 
-Приложение полностью статическое (HTML + CSS + vanilla JS) и обращается напрямую
-к публичному API Avanza (`apisvt.avanzagrupo.com`, CORS открыт):
+## How it works
 
-| Эндпоинт | Что даёт |
+The app is fully static (HTML + CSS + vanilla JS) and talks directly to the public
+Avanza API (`apisvt.avanzagrupo.com`, CORS is open):
+
+| Endpoint | Returns |
 |---|---|
-| `GET /lineas/getParadas?empresa=5` | все остановки: код, название, координаты, линии |
-| `GET /lineas/getTraficosParada?empresa=5&parada=<код>` | прибытия + координаты автобусов |
-| `GET /lineas/getLineas?empresa=5&N=1` | список линий и их цвета |
+| `GET /lineas/getParadas?empresa=5` | all stops: code, name, coordinates, lines |
+| `GET /lineas/getTraficosParada?empresa=5&parada=<code>` | arrivals + live bus coordinates |
+| `GET /lineas/getLineas?empresa=5&N=1` | line list with colors |
 
-`empresa=5` — код оператора Benidorm в системе Avanza. Список остановок и линий
-кэшируется в `localStorage` на 24 часа.
+`empresa=5` is the Benidorm operator code in the Avanza system. The stop and line
+lists are cached in `localStorage` for 24 hours.
 
-## Запуск локально
+## Run locally
 
-Нужен любой статический сервер, например:
+Any static file server works, e.g.:
 
 ```bash
 python -m http.server 8000
 ```
 
-и открыть http://localhost:8000
+then open http://localhost:8000
 
-## Деплой
+## Deployment
 
-Хостится на GitHub Pages прямо из ветки `main` — без сборки.
+Hosted on GitHub Pages from the `gh-pages` branch. Every push to `main` triggers
+a workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) that
+publishes the repository content to `gh-pages`.
 
-## Дисклеймер
+## Disclaimer
 
-Это неофициальный проект. Данные предоставляет API Avanza Grupo; приложение
-не аффилировано с Avanza. Точность времени прибытия зависит от данных оператора.
+This is an unofficial project, not affiliated with Avanza Grupo. All data comes
+from the Avanza Grupo API; arrival time accuracy depends on the operator's data.

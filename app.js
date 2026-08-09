@@ -1,6 +1,6 @@
 /* Bus Radar — Altea · Albir · Benidorm
- * Данные: публичное API Avanza Grupo (apisvt.avanzagrupo.com), empresa 5 (Llorente Bus Benidorm).
- * Полностью статическое приложение: API отдаёт Access-Control-Allow-Origin: *.
+ * Data source: public Avanza Grupo API (apisvt.avanzagrupo.com), empresa 5 (Llorente Bus Benidorm).
+ * Fully static app: the API sends Access-Control-Allow-Origin: *.
  */
 'use strict';
 
@@ -9,24 +9,22 @@ const EMPRESA = 5;
 const REFRESH_MS = 15000;
 const STOPS_CACHE_KEY = 'busradar_stops_v1';
 const LINES_CACHE_KEY = 'busradar_lines_v1';
+const LANG_KEY = 'busradar_lang';
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 
-const TOWN_CODES = {
-  BND: 'Бенидорм', VIL: 'Ла-Вила-Жойоза', FIN: 'Финестрат', NUC: 'Ла-Нусия',
-  ALT: 'Альтеа', ALF: 'Альфас-дель-Пи / Альбир', POL: 'Полоп', REL: 'Рельеу',
-  ORX: 'Орчета', SEL: 'Селья', GUA: 'Гуадалест', CSA: 'CSA',
-};
-
+let lang = detectLang();
 let stops = [];            // [{cod, ds, town, lat, lon, lines[]}]
 let lineColors = {};       // '010' -> '#FF0000'
 let userPos = null;        // {lat, lon}
-let currentStop = null;    // объект остановки
+let currentStop = null;
+let lastTraficos = null;   // last arrivals payload, so a language switch can re-render instantly
 let refreshTimer = null;
 let map, stopsLayer, busLayer, userMarker, selectedMarker;
 
 const $ = (id) => document.getElementById(id);
+const t = () => I18N[lang];
 
-/* ---------- утилиты ---------- */
+/* ---------- helpers ---------- */
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000, rad = Math.PI / 180;
@@ -37,7 +35,7 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 function fmtDist(m) {
-  return m < 950 ? `${Math.round(m / 10) * 10} м` : `${(m / 1000).toFixed(1)} км`;
+  return m < 950 ? `${Math.round(m / 10) * 10} ${t().m}` : `${(m / 1000).toFixed(1)} ${t().km}`;
 }
 
 function normalize(s) {
@@ -50,12 +48,18 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function townName(code) {
+  const n = TOWN_NAMES[code];
+  if (!n) return code || '';
+  return (lang === 'ru' || lang === 'uk') ? n[lang] : n.latin;
+}
+
 function cacheGet(key) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const { t, v } = JSON.parse(raw);
-    return Date.now() - t < CACHE_TTL ? v : null;
+    const { t: ts, v } = JSON.parse(raw);
+    return Date.now() - ts < CACHE_TTL ? v : null;
   } catch { return null; }
 }
 
@@ -71,15 +75,17 @@ async function apiGet(path) {
   return json.data;
 }
 
-/* ---------- загрузка справочников ---------- */
+/* ---------- reference data ---------- */
 
 function parseStop(p) {
+  // Stop names carry a town suffix in two formats: "… _BND" or "… -ALF".
+  // Strip it only when the code is known, so real name endings survive.
   const m = p.ds.match(/^(.*?)\s*[-_]([A-Z]{2,4})\s*$/);
-  const known = m && TOWN_CODES[m[2]];
+  const known = m && TOWN_NAMES[m[2]];
   return {
     cod: p.cod,
     ds: known ? m[1] : p.ds.trim(),
-    town: known || '',
+    town: known ? m[2] : '',
     lat: parseFloat(p.coordinates[0]),
     lon: parseFloat(p.coordinates[1]),
     lines: p.lines || [],
@@ -116,7 +122,7 @@ function lineColor(co) {
   return lineColors[co] || lineColors[String(co).padStart(3, '0')] || '#d32f2f';
 }
 
-/* ---------- карта ---------- */
+/* ---------- map ---------- */
 
 function initMap() {
   map = L.map('map', { zoomControl: true }).setView([38.556, -0.083], 13);
@@ -151,22 +157,22 @@ function highlightStop(s) {
 
 function drawBuses(traficos) {
   busLayer.clearLayers();
-  for (const t of traficos) {
-    const lat = parseFloat(t.lat), lon = parseFloat(t.lon);
+  for (const tr of traficos) {
+    const lat = parseFloat(tr.lat), lon = parseFloat(tr.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    const label = t.coLinea && t.coLinea !== '000' ? t.coLinea.replace(/^0+/, '') || t.coLinea : '🚌';
+    const label = tr.coLinea && tr.coLinea !== '000' ? tr.coLinea.replace(/^0+/, '') || tr.coLinea : '?';
     const icon = L.divIcon({
       className: '',
-      html: `<div class="bus-icon" style="background:${esc(lineColor(t.coLinea))};padding:2px 6px">🚌 ${esc(label)}</div>`,
+      html: `<div class="bus-icon" style="background:${esc(lineColor(tr.coLinea))};padding:2px 6px">🚌 ${esc(label)}</div>`,
       iconSize: null,
     });
     const m = L.marker([lat, lon], { icon, zIndexOffset: 1000 });
-    m.bindTooltip(`Линия ${esc(t.coLinea)} → ${esc(t.dsDestino || '?')} · ${esc(t.quedan || '')}`);
+    m.bindTooltip(`${esc(t().thLine)} ${esc(tr.coLinea)} → ${esc(tr.dsDestino || '?')} · ${esc(fmtEta(tr))}`);
     busLayer.addLayer(m);
   }
 }
 
-/* ---------- список остановок ---------- */
+/* ---------- stop list ---------- */
 
 function renderStopsList(filter) {
   const list = $('stops-list');
@@ -174,7 +180,8 @@ function renderStopsList(filter) {
   let items = stops;
 
   if (q) {
-    items = stops.filter(s => normalize(s.ds).includes(q) || s.cod.startsWith(q) || normalize(s.town).includes(q));
+    items = stops.filter(s =>
+      normalize(s.ds).includes(q) || s.cod.startsWith(q) || normalize(townName(s.town)).includes(q));
   }
   if (userPos) {
     items = items.map(s => ({ ...s, dist: haversine(userPos.lat, userPos.lon, s.lat, s.lon) }))
@@ -189,8 +196,8 @@ function renderStopsList(filter) {
   list.innerHTML = items.slice(0, 30).map(s => `
     <li data-cod="${esc(s.cod)}">
       <span class="code">${esc(s.cod)}</span>
-      <span class="name">${esc(s.ds)}${s.town ? ` <small>(${esc(s.town)})</small>` : ''}
-        <span class="lines">Линии: ${s.lines.map(esc).join(', ') || '—'}</span>
+      <span class="name">${esc(s.ds)}${s.town ? ` <small>(${esc(townName(s.town))})</small>` : ''}
+        <span class="lines">${esc(t().lines)}: ${s.lines.map(esc).join(', ') || '—'}</span>
       </span>
       ${s.dist != null ? `<span class="dist">${fmtDist(s.dist)}</span>` : ''}
     </li>`).join('');
@@ -201,48 +208,51 @@ function renderStopsList(filter) {
 
 function locate() {
   if (!navigator.geolocation) {
-    $('stops-hint').textContent = 'Геолокация не поддерживается браузером.';
+    $('stops-hint').textContent = t().geoUnsupported;
     return;
   }
   $('btn-locate').disabled = true;
-  $('btn-locate').textContent = '📍 …';
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       if (userMarker) map.removeLayer(userMarker);
       userMarker = L.circleMarker([userPos.lat, userPos.lon], {
         radius: 8, weight: 3, color: '#1565c0', fillColor: '#2196f3', fillOpacity: 1,
-      }).addTo(map).bindTooltip('Вы здесь');
+      }).addTo(map).bindTooltip(t().youAreHere);
       map.setView([userPos.lat, userPos.lon], 15);
       $('btn-locate').disabled = false;
-      $('btn-locate').textContent = '📍 Рядом';
       renderStopsList($('search').value);
     },
     (err) => {
       $('btn-locate').disabled = false;
-      $('btn-locate').textContent = '📍 Рядом';
       $('stops-hint').hidden = false;
-      $('stops-hint').textContent = 'Не удалось определить местоположение: ' + err.message;
+      $('stops-hint').textContent = t().geoFail + err.message;
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
   );
 }
 
-/* ---------- табло прибытий ---------- */
+/* ---------- arrivals board ---------- */
+
+function fmtEta(tr) {
+  if (tr.minres != null) return tr.minres <= 0 ? t().now : `${tr.minres} ${t().min}`;
+  return tr.quedan || '—';
+}
 
 function selectStop(cod) {
   const s = stops.find(x => x.cod === String(cod));
   if (!s) return;
   currentStop = s;
+  lastTraficos = null;
   location.hash = '#/stop/' + s.cod;
 
   $('view-stops').hidden = true;
   $('view-arrivals').hidden = false;
-  $('stop-name').textContent = s.ds + (s.town ? ` (${s.town})` : '');
-  $('stop-code').textContent = '№ ' + s.cod;
-  $('stop-lines').textContent = s.lines.length ? 'Линии: ' + s.lines.join(', ') : '';
+  $('stop-name').textContent = s.ds + (s.town ? ` (${townName(s.town)})` : '');
+  $('stop-code').textContent = `${t().stopNo} ${s.cod}`;
+  $('stop-lines').textContent = s.lines.length ? `${t().lines}: ${s.lines.join(', ')}` : '';
   $('arrivals-table').hidden = true;
-  $('arrivals-status').textContent = 'Загрузка…';
+  $('arrivals-status').textContent = t().loading;
 
   highlightStop(s);
   scheduleRefresh(true);
@@ -250,6 +260,7 @@ function selectStop(cod) {
 
 function closeStop() {
   currentStop = null;
+  lastTraficos = null;
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   clearTimeout(refreshTimer);
   busLayer.clearLayers();
@@ -272,16 +283,17 @@ async function refreshArrivals() {
   $('btn-refresh').classList.add('spin');
   try {
     const data = await apiGet(`/lineas/getTraficosParada?empresa=${EMPRESA}&parada=${encodeURIComponent(stop.cod)}&find=`);
-    if (currentStop !== stop) return; // пользователь уже ушёл на другую остановку
+    if (currentStop !== stop) return; // user already switched to another stop
     const traficos = (data.traficos || []).slice()
       .sort((a, b) => (a.minres ?? 999) - (b.minres ?? 999));
+    lastTraficos = traficos;
     renderArrivals(traficos);
     drawBuses(traficos);
     $('arrivals-status').textContent =
-      'Обновлено в ' + new Date().toLocaleTimeString('ru-RU') + ' · автообновление каждые 15 с';
+      t().updatedAt(new Date().toLocaleTimeString(lang === 'en' ? 'en-GB' : lang));
   } catch (e) {
     if (currentStop !== stop) return;
-    $('arrivals-status').textContent = 'Ошибка загрузки данных: ' + e.message + ' — повтор через 15 с';
+    $('arrivals-status').textContent = t().loadError(e.message);
   } finally {
     $('btn-refresh').classList.remove('spin');
   }
@@ -291,26 +303,63 @@ function renderArrivals(traficos) {
   const tbl = $('arrivals-table'), body = $('arrivals-body');
   if (!traficos.length) {
     tbl.hidden = true;
-    $('arrivals-status').textContent = 'Пока нет автобусов в пути к этой остановке.';
+    $('arrivals-status').textContent = t().noBuses;
     return;
   }
-  body.innerHTML = traficos.map(t => {
-    const arriving = t.minres != null && t.minres <= 0;
-    const eta = arriving
-      ? 'сейчас'
-      : (t.quedan || (t.minres != null ? `${t.minres} мин` : '—')).replace(/\bmin\b/, 'мин');
-    const abs = t.llegada ? t.llegada.slice(0, 5) : '';
-    const line = t.coLinea === '000' ? '—' : t.coLinea;
+  body.innerHTML = traficos.map(tr => {
+    const arriving = tr.minres != null && tr.minres <= 0;
+    const abs = tr.llegada ? tr.llegada.slice(0, 5) : '';
+    const line = tr.coLinea === '000' ? '—' : tr.coLinea;
     return `<tr>
-      <td><span class="line-badge" style="background:${esc(lineColor(t.coLinea))}">${esc(line)}</span></td>
-      <td><span class="eta${arriving ? ' now' : ''}">${esc(eta)}${abs ? `<span class="abs">${esc(abs)}</span>` : ''}</span></td>
-      <td class="dest">${esc(t.dsDestino || t.dsLinea || '—')}</td>
+      <td><span class="line-badge" style="background:${esc(lineColor(tr.coLinea))}">${esc(line)}</span></td>
+      <td><span class="eta${arriving ? ' now' : ''}">${esc(fmtEta(tr))}${abs ? `<span class="abs">${esc(abs)}</span>` : ''}</span></td>
+      <td class="dest">${esc(tr.dsDestino || tr.dsLinea || '—')}</td>
     </tr>`;
   }).join('');
   tbl.hidden = false;
 }
 
-/* ---------- запуск ---------- */
+/* ---------- i18n ---------- */
+
+function applyI18n() {
+  document.documentElement.lang = lang;
+  $('btn-locate').textContent = t().near;
+  $('search').placeholder = t().searchPlaceholder;
+  if (!userPos && !$('search').value) $('stops-hint').textContent = t().hintStart;
+  $('btn-back').textContent = t().back;
+  $('btn-refresh').title = t().refresh;
+  $('th-line').textContent = t().thLine;
+  $('th-eta').textContent = t().thEta;
+  $('th-dest').textContent = t().thDest;
+  $('credits').innerHTML = t().credits.replace('{link}',
+    '<a href="https://consultas.avanzagrupo.com" target="_blank" rel="noopener">Avanza Grupo</a>');
+  $('btn-lang').innerHTML = `${langFlag(lang)} ${lang.toUpperCase()}`;
+
+  $('lang-menu').innerHTML = Object.keys(LANGS).map(code =>
+    `<button data-lang="${code}" class="${code === lang ? 'active' : ''}">${langFlag(code)} ${LANGS[code].name}</button>`
+  ).join('');
+  $('lang-menu').querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => setLang(b.dataset.lang)));
+}
+
+function setLang(code) {
+  if (!I18N[code]) return;
+  lang = code;
+  try { localStorage.setItem(LANG_KEY, code); } catch {}
+  $('lang-menu').hidden = true;
+  applyI18n();
+  // Re-render dynamic views in the new language without waiting for the next poll
+  if (currentStop) {
+    $('stop-code').textContent = `${t().stopNo} ${currentStop.cod}`;
+    $('stop-lines').textContent = currentStop.lines.length ? `${t().lines}: ${currentStop.lines.join(', ')}` : '';
+    $('stop-name').textContent = currentStop.ds + (currentStop.town ? ` (${townName(currentStop.town)})` : '');
+    if (lastTraficos) { renderArrivals(lastTraficos); drawBuses(lastTraficos); }
+  } else {
+    renderStopsList($('search').value);
+  }
+}
+
+/* ---------- boot ---------- */
 
 function handleHash() {
   const m = location.hash.match(/^#\/stop\/(\w+)/);
@@ -320,9 +369,15 @@ function handleHash() {
 
 async function main() {
   initMap();
+  applyI18n();
   $('btn-locate').addEventListener('click', locate);
   $('btn-back').addEventListener('click', closeStop);
   $('btn-refresh').addEventListener('click', () => scheduleRefresh(true));
+  $('btn-lang').addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('lang-menu').hidden = !$('lang-menu').hidden;
+  });
+  document.addEventListener('click', () => { $('lang-menu').hidden = true; });
   $('search').addEventListener('input', (e) => renderStopsList(e.target.value));
   window.addEventListener('hashchange', handleHash);
   document.addEventListener('visibilitychange', () => {
@@ -333,7 +388,7 @@ async function main() {
   try {
     await Promise.all([loadStops(), loadLines()]);
   } catch (e) {
-    $('stops-hint').textContent = 'Не удалось загрузить список остановок: ' + e.message;
+    $('stops-hint').textContent = t().stopsLoadError + e.message;
     return;
   }
   drawStops();

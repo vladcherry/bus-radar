@@ -59,6 +59,32 @@ button {
 button:active { transform: scale(.97); }
 .btn-locate { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; white-space: nowrap; }
 
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.lang { position: relative; }
+.btn-lang { white-space: nowrap; font-weight: 600; }
+.lang-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  z-index: 2000;
+  overflow: hidden;
+}
+.lang-menu button {
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  padding: 10px 14px;
+}
+.lang-menu button:hover { background: var(--accent-soft); }
+.lang-menu button.active { font-weight: 700; color: var(--accent); }
+
 #map {
   height: 42vh;
   min-height: 220px;
@@ -178,7 +204,7 @@ button:active { transform: scale(.97); }
 }
 .credits a { color: inherit; }
 
-/* Маркеры на карте */
+/* Map markers */
 .stop-marker-label { background: none; border: none; }
 .bus-icon {
   display: flex;
