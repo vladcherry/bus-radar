@@ -20,6 +20,8 @@ and when they arrive at a chosen stop. Coverage: Altea — Albir — Benidorm
 - 🌐 4 languages (Español, Valencià, English, Українська) — auto-detected
   from the browser locale, switchable via the flag menu, choice saved in `localStorage`
 - 🔗 Shareable stop links: `#/stop/510`
+- 📲 Installable PWA: add it to your home screen; the app shell works offline
+  (live arrivals still require a connection)
 
 ## How it works
 
@@ -35,6 +37,10 @@ Avanza API (`apisvt.avanzagrupo.com`, CORS is open):
 
 `empresa=5` is the Benidorm operator code in the Avanza system. The stop and line
 lists are cached in `localStorage` for 24 hours.
+
+A service worker ([sw.js](sw.js)) precaches the app shell (HTML, CSS, JS, icons,
+Leaflet) so the app starts instantly and works offline; API responses and map
+tiles are never cached by it, so arrival data is always live.
 
 ## Run locally
 
