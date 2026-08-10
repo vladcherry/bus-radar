@@ -47,12 +47,30 @@
           <span id="stop-lines" class="stop-lines"></span>
         </div>
       </div>
+      <button id="btn-fav" class="btn-fav">♡</button>
       <button id="btn-refresh" class="btn-refresh">⟳</button>
     </div>
     <div id="arrivals-status" class="hint"></div>
     <table class="arrivals" id="arrivals-table" hidden>
       <thead><tr><th id="th-line"></th><th id="th-eta"></th><th id="th-dest"></th></tr></thead>
       <tbody id="arrivals-body"></tbody>
+    </table>
+  </section>
+
+  <!-- Bus route view -->
+  <section id="view-bus" hidden>
+    <div class="arrivals-head">
+      <button id="btn-bus-back" class="btn-back"></button>
+      <div class="stop-title">
+        <div id="bus-title" class="stop-name"></div>
+        <div class="stop-meta"><span id="bus-dest" class="stop-lines"></span></div>
+      </div>
+    </div>
+    <div id="bus-status" class="hint"></div>
+    <div id="bus-upcoming-title" class="section-title" hidden></div>
+    <table class="arrivals" id="bus-table" hidden>
+      <thead><tr><th id="th-bus-stop"></th><th id="th-bus-time"></th></tr></thead>
+      <tbody id="bus-body"></tbody>
     </table>
   </section>
 

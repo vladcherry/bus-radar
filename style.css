@@ -140,6 +140,25 @@ button:active { transform: scale(.97); }
 .stops-list .name { flex: 1; font-size: .92rem; line-height: 1.25; }
 .stops-list .name .lines { display: block; color: var(--muted); font-size: .75rem; margin-top: 2px; }
 .stops-list .dist { flex: 0 0 auto; color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.stops-list .fav {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--muted);
+  padding: 4px 6px;
+}
+.stops-list .fav.on { color: var(--accent); }
+
+.section-title {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  padding: 10px 4px 4px;
+}
 
 .arrivals-head {
   display: flex;
@@ -147,7 +166,9 @@ button:active { transform: scale(.97); }
   gap: 10px;
   margin-bottom: 6px;
 }
-.btn-back, .btn-refresh { flex: 0 0 auto; }
+.btn-back, .btn-refresh, .btn-fav { flex: 0 0 auto; }
+.btn-fav { font-size: 1.2rem; line-height: 1; color: var(--muted); padding: 8px 10px; }
+.btn-fav.on { color: var(--accent); }
 .btn-refresh { font-size: 1.1rem; line-height: 1; }
 .btn-refresh.spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -194,6 +215,12 @@ button:active { transform: scale(.97); }
 .eta .abs { display: block; font-weight: 400; font-size: .72rem; color: var(--muted); }
 @keyframes pulse { 50% { opacity: .5; } }
 .dest { font-size: .88rem; line-height: 1.25; }
+.arrivals tr.clickable { cursor: pointer; }
+.arrivals tr.clickable:hover td { background: var(--accent-soft); }
+.chev { color: var(--muted); font-weight: 700; }
+.bus-eta { white-space: nowrap; font-weight: 600; }
+.eta-pending { color: var(--muted); }
+#bus-body tr { cursor: pointer; }
 
 .credits {
   padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
@@ -225,6 +252,7 @@ button:active { transform: scale(.97); }
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   font-size: 12px;
   font-weight: 700;
   color: #fff;
@@ -233,6 +261,12 @@ button:active { transform: scale(.97); }
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(0,0,0,.4);
   white-space: nowrap;
+}
+.bus-arrow {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1;
+  transform-origin: 50% 55%;
 }
 
 @media (min-width: 900px) {

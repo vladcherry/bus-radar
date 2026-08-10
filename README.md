@@ -11,9 +11,12 @@ and when they arrive at a chosen stop. Coverage: Altea — Albir — Benidorm
 
 - 📍 Nearest stops via geolocation
 - 🔎 Stop search by name or number
+- ♥ Favourite stops (saved in `localStorage`)
 - 🗺 Map of all stops (Leaflet + OpenStreetMap)
 - ⏱ Real-time arrivals board, auto-refreshing every 15 seconds
-- 🚌 Live positions of approaching buses on the map
+- 🚌 Live positions of approaching buses with movement-based direction arrows
+- 🧭 Click a bus (marker or arrivals row) to see its route on the map and the
+  expected time at every upcoming stop
 - 🌐 4 languages (Español, Valencià, English, Українська) — auto-detected
   from the browser locale, switchable via the flag menu, choice saved in `localStorage`
 - 🔗 Shareable stop links: `#/stop/510`
@@ -28,6 +31,7 @@ Avanza API (`apisvt.avanzagrupo.com`, CORS is open):
 | `GET /lineas/getParadas?empresa=5` | all stops: code, name, coordinates, lines |
 | `GET /lineas/getTraficosParada?empresa=5&parada=<code>` | arrivals + live bus coordinates |
 | `GET /lineas/getLineas?empresa=5&N=1` | line list with colors |
+| `GET /lineas/getTrayectos?empresa=5&linea=<line>` | ordered stop list per direction (route track) |
 
 `empresa=5` is the Benidorm operator code in the Avanza system. The stop and line
 lists are cached in `localStorage` for 24 hours.
