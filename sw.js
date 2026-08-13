@@ -57,7 +57,24 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate.
+  // Own assets: network first, so a deploy reaches users on the next load;
+  // the cached copy keeps the app starting offline.
+  if (url.origin === location.origin) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(e.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request)),
+    );
+    return;
+  }
+
+  // Third-party assets (versioned Leaflet files): stale-while-revalidate.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fresh = fetch(e.request)
