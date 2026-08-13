@@ -26,6 +26,7 @@ let currentBus = null;     // trafico of the bus being inspected
 let busSeq = 0;            // guards async bus-view fills against stale responses
 let lastTraficos = null;   // last arrivals payload, so a language switch can re-render instantly
 let busTrack = {};         // ref -> {lat, lon, bearing} for movement-based heading
+let fitPending = false;    // fit the map to stop + buses on the next drawBuses
 let refreshTimer = null;
 let map, stopsLayer, busLayer, routeLayer, userMarker, selectedMarker;
 
@@ -187,6 +188,8 @@ function initMap() {
   stopsLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
   busLayer = L.layerGroup().addTo(map);
+  // a manual pan means the user took over — stop waiting to auto-fit
+  map.on('dragstart', () => { fitPending = false; });
 }
 
 // Front-view bus glyph drawn in the marker's currentColor
@@ -244,9 +247,11 @@ function updateBusTrack(traficos) {
 function drawBuses(traficos) {
   busLayer.clearLayers();
   updateBusTrack(traficos);
+  const busPts = [];
   for (const tr of traficos) {
     const lat = parseFloat(tr.lat), lon = parseFloat(tr.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    busPts.push([lat, lon]);
     const label = tr.coLinea && tr.coLinea !== '000' ? tr.coLinea.replace(/^0+/, '') || tr.coLinea : '?';
     const brg = tr.ref && busTrack[tr.ref] ? busTrack[tr.ref].bearing : null;
     const arrow = brg == null ? '' :
@@ -260,6 +265,13 @@ function drawBuses(traficos) {
     m.bindTooltip(`${esc(t().thLine)} ${esc(tr.coLinea)} → ${esc(tr.dsDestino || '?')} · ${esc(fmtEta(tr))}`);
     if (tr.ref && tr.coLinea !== '000') m.on('click', () => openBusView(tr));
     busLayer.addLayer(m);
+  }
+  // First render after picking a stop: bring the stop and its buses into view.
+  // Later refreshes leave the map alone so they don't fight the user.
+  if (fitPending && currentStop && busPts.length) {
+    fitPending = false;
+    const bounds = L.latLngBounds(busPts).extend([currentStop.lat, currentStop.lon]);
+    map.fitBounds(bounds.pad(0.15), { maxZoom: 16 });
   }
 }
 
@@ -361,6 +373,7 @@ function selectStop(cod) {
   closeBusView(true);
   currentStop = s;
   lastTraficos = null;
+  fitPending = true;
   location.hash = '#/stop/' + s.cod;
 
   $('view-stops').hidden = true;
@@ -563,6 +576,7 @@ function closeBusView(silent) {
   if (currentStop) {
     $('view-arrivals').hidden = false;
     highlightStop(currentStop);
+    fitPending = true;
     scheduleRefresh(true);
   } else {
     $('view-stops').hidden = false;
