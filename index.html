@@ -56,7 +56,13 @@
       <button id="btn-fav" class="btn-fav">♡</button>
       <button id="btn-refresh" class="btn-refresh">⟳</button>
     </div>
-    <div id="arrivals-status" class="hint"></div>
+    <div class="arrivals-toolbar">
+      <div class="filter">
+        <button id="btn-filter" class="btn-filter"></button>
+        <div id="filter-menu" class="filter-menu" hidden></div>
+      </div>
+      <div id="arrivals-status" class="hint"></div>
+    </div>
     <table class="arrivals" id="arrivals-table" hidden>
       <thead><tr><th id="th-line"></th><th id="th-eta"></th><th id="th-dest"></th></tr></thead>
       <tbody id="arrivals-body"></tbody>

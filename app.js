@@ -11,6 +11,7 @@ const STOPS_CACHE_KEY = 'busradar_stops_v1';
 const LINES_CACHE_KEY = 'busradar_lines_v1';
 const TRAY_CACHE_KEY = 'busradar_tray_v1_';  // + line code
 const FAVS_KEY = 'busradar_favs';
+const FILTER_KEY = 'busradar_filter_lines';
 const LANG_KEY = 'busradar_lang';
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 const BUS_ETA_STOPS_MAX = 20;   // cap per-stop ETA requests for a clicked bus
@@ -19,12 +20,16 @@ const BUS_ETA_CONCURRENCY = 5;
 let lang = detectLang();
 let stops = [];            // [{cod, ds, town, lat, lon, lines[]}]
 let lineColors = {};       // '010' -> '#FF0000'
+let lineNames = {};        // '010' -> route description
 let favs = loadFavs();     // Set of stop codes
+let filterLines = loadFilterLines();  // line codes to show; empty = show all
 let userPos = null;        // {lat, lon}
 let currentStop = null;
 let currentBus = null;     // trafico of the bus being inspected
 let busSeq = 0;            // guards async bus-view fills against stale responses
 let lastTraficos = null;   // last arrivals payload, so a language switch can re-render instantly
+let renderedTraficos = [];  // rows actually in the table (after filtering), for row clicks
+let lastUpdate = null;      // time of the last successful arrivals refresh
 let busTrack = {};         // ref -> {lat, lon, bearing} for movement-based heading
 let fitPending = false;    // fit the map to stop + buses on the next drawBuses
 let refreshTimer = null;
@@ -49,6 +54,10 @@ function bearing(lat1, lon1, lat2, lon2) {
   const x = Math.cos(lat1 * rad) * Math.sin(lat2 * rad) -
     Math.sin(lat1 * rad) * Math.cos(lat2 * rad) * Math.cos((lon2 - lon1) * rad);
   return (Math.atan2(y, x) / rad + 360) % 360;
+}
+
+function normLine(co) {
+  return String(co ?? '').trim().padStart(3, '0');
 }
 
 function fmtDist(m) {
@@ -120,6 +129,98 @@ function updateFavButton() {
   b.title = on ? t().favRemove : t().favAdd;
 }
 
+/* ---------- line filter ---------- */
+
+function loadFilterLines() {
+  try { return new Set(JSON.parse(localStorage.getItem(FILTER_KEY) || '[]').map(normLine)); }
+  catch { return new Set(); }
+}
+
+function saveFilterLines() {
+  try { localStorage.setItem(FILTER_KEY, JSON.stringify([...filterLines])); } catch {}
+}
+
+/* The filter is global, so at a stop none of the chosen lines serve it would blank
+ * the board — there we ignore it and show everything instead. */
+function activeFilter() {
+  if (!filterLines.size || !currentStop) return null;
+  const here = currentStop.lines.map(normLine).filter(c => filterLines.has(c));
+  return here.length ? new Set(here) : null;
+}
+
+function applyFilter(traficos) {
+  const f = activeFilter();
+  // entries with coLinea '000' carry no line, so a line filter drops them
+  return f ? traficos.filter(tr => f.has(normLine(tr.coLinea))) : traficos;
+}
+
+const FUNNEL_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>`;
+
+function updateFilterButton() {
+  const codes = [...filterLines].sort();
+  const label = codes.length
+    ? codes.slice(0, 3).join(', ') + (codes.length > 3 ? ` +${codes.length - 3}` : '')
+    : t().filter;
+  const b = $('btn-filter');
+  b.innerHTML = FUNNEL_SVG + `<span>${esc(label)}</span>`;
+  b.classList.toggle('on', codes.length > 0);
+  b.title = t().filterTitle;
+}
+
+/* Long API names ("A - B - C - D") shrink to their endpoints */
+function shortLineName(code) {
+  const n = lineNames[code];
+  if (!n) return '';
+  const parts = n.split(/\s*-\s*/).map(x => x.trim()).filter(Boolean);
+  return parts.length > 2 ? `${parts[0]} … ${parts[parts.length - 1]}` : n;
+}
+
+function renderFilterMenu() {
+  const menu = $('filter-menu');
+  const scroll = menu.scrollTop;
+  const lines = currentStop ? currentStop.lines.map(normLine) : [];
+
+  menu.innerHTML =
+    `<div class="filter-hint">${esc(t().filterTitle)}</div>` +
+    lines.map(code => {
+      const name = lineNames[code] || '';
+      return `<label title="${esc(name)}">
+        <input type="checkbox" data-line="${esc(code)}"${filterLines.has(code) ? ' checked' : ''}>
+        <span class="line-badge" style="background:${esc(lineColor(code))}">${esc(code)}</span>
+        <span class="line-name">${esc(shortLineName(code))}</span>
+      </label>`;
+    }).join('') +
+    (filterLines.size && !activeFilter() ? `<div class="filter-hint">${esc(t().filterNoneHere)}</div>` : '') +
+    (filterLines.size ? `<button class="filter-reset">${esc(t().filterAll)}</button>` : '');
+
+  menu.querySelectorAll('input[data-line]').forEach(inp =>
+    inp.addEventListener('change', () => toggleFilterLine(inp.dataset.line)));
+  const reset = menu.querySelector('.filter-reset');
+  if (reset) reset.addEventListener('click', () => {
+    filterLines.clear();
+    saveFilterLines();
+    applyFilterChange();
+  });
+  menu.scrollTop = scroll;
+}
+
+function toggleFilterLine(code) {
+  if (filterLines.has(code)) filterLines.delete(code); else filterLines.add(code);
+  saveFilterLines();
+  applyFilterChange();
+}
+
+function applyFilterChange() {
+  updateFilterButton();
+  renderFilterMenu();  // the hint and the reset row appear/disappear with the selection
+  if (lastTraficos) {
+    const shown = applyFilter(lastTraficos);
+    renderArrivals(shown);
+    drawBuses(shown);
+  }
+  renderStatus();
+}
+
 /* ---------- reference data ---------- */
 
 function parseStop(p) {
@@ -156,9 +257,13 @@ async function loadLines() {
   }
   const arr = Array.isArray(data) ? data : Object.values(data);
   for (const l of arr) {
-    if (l && l.color) {
-      if (l.id) lineColors[l.id] = l.color;
-      if (l.idsae) lineColors[l.idsae] = l.color;
+    if (!l) continue;
+    const name = l.name || l.nombre || '';
+    for (const key of [l.id, l.idsae]) {
+      if (!key) continue;
+      const k = normLine(key);
+      if (l.color) lineColors[k] = l.color;
+      if (name) lineNames[k] = name;
     }
   }
 }
@@ -271,7 +376,9 @@ function drawBuses(traficos) {
   if (fitPending && currentStop && busPts.length) {
     fitPending = false;
     const bounds = L.latLngBounds(busPts).extend([currentStop.lat, currentStop.lon]);
-    map.fitBounds(bounds.pad(0.15), { maxZoom: 16 });
+    // animate: false — an animated fit never lands while the tab is hidden
+    // (no CSS transitions there), leaving the map stuck at the old zoom
+    map.fitBounds(bounds.pad(0.15), { maxZoom: 16, animate: false });
   }
 }
 
@@ -373,6 +480,8 @@ function selectStop(cod) {
   closeBusView(true);
   currentStop = s;
   lastTraficos = null;
+  renderedTraficos = [];
+  lastUpdate = null;
   fitPending = true;
   location.hash = '#/stop/' + s.cod;
 
@@ -384,6 +493,9 @@ function selectStop(cod) {
   $('arrivals-table').hidden = true;
   $('arrivals-status').textContent = t().loading;
   updateFavButton();
+  updateFilterButton();
+  renderFilterMenu();
+  $('filter-menu').hidden = true;
 
   highlightStop(s);
   scheduleRefresh(true);
@@ -395,6 +507,7 @@ function closeStop() {
   lastTraficos = null;
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   clearTimeout(refreshTimer);
+  $('filter-menu').hidden = true;
   busLayer.clearLayers();
   highlightStop(null);
   $('view-arrivals').hidden = true;
@@ -419,10 +532,11 @@ async function refreshArrivals() {
     const traficos = (data.traficos || []).slice()
       .sort((a, b) => (a.minres ?? 999) - (b.minres ?? 999));
     lastTraficos = traficos;
-    renderArrivals(traficos);
-    drawBuses(traficos);
-    $('arrivals-status').textContent =
-      t().updatedAt(new Date().toLocaleTimeString(lang === 'en' ? 'en-GB' : lang));
+    lastUpdate = new Date();
+    const shown = applyFilter(traficos);
+    renderArrivals(shown);
+    drawBuses(shown);
+    renderStatus();
   } catch (e) {
     if (currentStop !== stop || currentBus) return;
     $('arrivals-status').textContent = t().loadError(e.message);
@@ -431,11 +545,19 @@ async function refreshArrivals() {
   }
 }
 
+/* Why the board is empty (if it is) plus the last successful refresh time */
+function renderStatus() {
+  const parts = [];
+  if (!renderedTraficos.length) parts.push(activeFilter() ? t().noBusesFiltered : t().noBuses);
+  if (lastUpdate) parts.push(t().updatedAt(lastUpdate.toLocaleTimeString(lang === 'en' ? 'en-GB' : lang)));
+  $('arrivals-status').textContent = parts.join(' · ');
+}
+
 function renderArrivals(traficos) {
   const tbl = $('arrivals-table'), body = $('arrivals-body');
+  renderedTraficos = traficos;
   if (!traficos.length) {
     tbl.hidden = true;
-    $('arrivals-status').textContent = t().noBuses;
     return;
   }
   body.innerHTML = traficos.map((tr, i) => {
@@ -452,7 +574,7 @@ function renderArrivals(traficos) {
   tbl.hidden = false;
   body.querySelectorAll('tr.clickable').forEach(row =>
     row.addEventListener('click', () => {
-      const tr = lastTraficos && lastTraficos[Number(row.dataset.idx)];
+      const tr = renderedTraficos[Number(row.dataset.idx)];
       if (tr) openBusView(tr);
     }));
 }
@@ -477,6 +599,7 @@ async function openBusView(tr) {
   $('view-stops').hidden = true;
   $('view-arrivals').hidden = true;
   $('view-bus').hidden = false;
+  $('filter-menu').hidden = true;
   $('btn-bus-back').textContent = currentStop ? t().backToBoard : t().back;
   $('bus-title').innerHTML =
     `<span class="line-badge" style="background:${esc(lineColor(tr.coLinea))}">${esc(tr.coLinea)}</span> ${esc(t().busTitle(tr.coLinea.replace(/^0+/, '') || tr.coLinea))}`;
@@ -522,7 +645,7 @@ async function openBusView(tr) {
   if (Number.isFinite(busLat)) routeLayer.addLayer(L.circleMarker([busLat, busLon], {
     radius: 3, weight: 6, color, opacity: .35, fillOpacity: 0,
   }));
-  map.fitBounds(L.latLngBounds(pts).pad(0.1));
+  map.fitBounds(L.latLngBounds(pts).pad(0.1), { animate: false });
 
   // upcoming stops = from the stop nearest to the bus through the end of the trayecto
   let nearestIdx = 0, best = Infinity;
@@ -598,6 +721,8 @@ function applyI18n() {
   $('th-bus-stop').textContent = t().stopNo;
   $('th-bus-time').textContent = t().thTime;
   $('btn-bus-back').textContent = currentStop ? t().backToBoard : t().back;
+  updateFilterButton();
+  renderFilterMenu();
   $('credits').innerHTML = t().credits
     .replace('{link}', '<a href="https://consultas.avanzagrupo.com" target="_blank" rel="noopener">Avanza Grupo</a>')
     .replace('{feedback}', `<a href="mailto:${FEEDBACK_EMAIL}">✉ ${esc(t().feedback)}</a>`);
@@ -627,7 +752,12 @@ function setLang(code) {
     $('stop-lines').textContent = currentStop.lines.length ? `${t().lines}: ${currentStop.lines.join(', ')}` : '';
     $('stop-name').textContent = currentStop.ds + (currentStop.town ? ` (${townName(currentStop.town)})` : '');
     updateFavButton();
-    if (lastTraficos) { renderArrivals(lastTraficos); drawBuses(lastTraficos); }
+    if (lastTraficos) {
+      const shown = applyFilter(lastTraficos);
+      renderArrivals(shown);
+      drawBuses(shown);
+    }
+    renderStatus();
   } else {
     renderStopsList($('search').value);
   }
@@ -651,9 +781,22 @@ async function main() {
   $('btn-refresh').addEventListener('click', () => scheduleRefresh(true));
   $('btn-lang').addEventListener('click', (e) => {
     e.stopPropagation();
+    $('filter-menu').hidden = true;
     $('lang-menu').hidden = !$('lang-menu').hidden;
   });
-  document.addEventListener('click', () => { $('lang-menu').hidden = true; });
+  $('btn-filter').addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('lang-menu').hidden = true;
+    const m = $('filter-menu');
+    if (m.hidden) renderFilterMenu();
+    m.hidden = !m.hidden;
+  });
+  // ticking a checkbox must not reach the outside-click handler below
+  $('filter-menu').addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => {
+    $('lang-menu').hidden = true;
+    $('filter-menu').hidden = true;
+  });
   $('search').addEventListener('input', (e) => renderStopsList(e.target.value));
   window.addEventListener('hashchange', handleHash);
   document.addEventListener('visibilitychange', () => {
