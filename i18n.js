@@ -77,6 +77,11 @@ const I18N = {
     noRouteData: 'No hay datos del recorrido de esta línea.',
     backToBoard: '‹ Panel de llegadas',
     thTime: 'Hora prevista',
+    filter: 'Filtro',
+    filterTitle: 'Mostrar líneas',
+    filterAll: 'Todas las líneas',
+    filterNoneHere: 'Ninguna línea seleccionada pasa por esta parada: se muestran todas.',
+    noBusesFiltered: 'No hay autobuses de las líneas seleccionadas en camino.',
   },
   va: {
     near: '📍 Prop de mi',
@@ -106,6 +111,11 @@ const I18N = {
     noRouteData: "No hi ha dades del recorregut d'esta línia.",
     backToBoard: "‹ Panell d'arribades",
     thTime: 'Hora prevista',
+    filter: 'Filtre',
+    filterTitle: 'Mostrar línies',
+    filterAll: 'Totes les línies',
+    filterNoneHere: 'Cap línia seleccionada passa per esta parada: es mostren totes.',
+    noBusesFiltered: 'No hi ha autobusos de les línies seleccionades en camí.',
   },
   en: {
     near: '📍 Near me',
@@ -135,6 +145,11 @@ const I18N = {
     noRouteData: 'No route data available for this line.',
     backToBoard: '‹ Arrivals board',
     thTime: 'Expected time',
+    filter: 'Filter',
+    filterTitle: 'Show lines',
+    filterAll: 'All lines',
+    filterNoneHere: 'None of the selected lines serve this stop — showing all.',
+    noBusesFiltered: 'No buses on the selected lines are on the way.',
   },
   uk: {
     near: '📍 Поруч',
@@ -164,6 +179,11 @@ const I18N = {
     noRouteData: 'Немає даних про маршрут цієї лінії.',
     backToBoard: '‹ Табло прибуттів',
     thTime: 'Очікуваний час',
+    filter: 'Фільтр',
+    filterTitle: 'Показувати лінії',
+    filterAll: 'Усі лінії',
+    filterNoneHere: 'Обрані лінії не проходять через цю зупинку — показано всі.',
+    noBusesFiltered: 'Автобусів обраних ліній поки немає в дорозі.',
   },
 };
 

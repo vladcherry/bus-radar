@@ -12,6 +12,8 @@ and when they arrive at a chosen stop. Coverage: Altea — Albir — Benidorm
 - 📍 Nearest stops via geolocation
 - 🔎 Stop search by name or number
 - ♥ Favourite stops (saved in `localStorage`)
+- 🎛 Line filter: pick the lines you care about in the filter dropdown and the
+  arrivals board and the map show only those buses (saved in `localStorage`)
 - 🗺 Map of all stops (Leaflet + OpenStreetMap)
 - ⏱ Real-time arrivals board, auto-refreshing every 15 seconds
 - 🚌 Live positions of approaching buses with movement-based direction arrows
