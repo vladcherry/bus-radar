@@ -60,6 +60,11 @@ Hosted on GitHub Pages from the `gh-pages` branch. Every push to `main` triggers
 a workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) that
 publishes the repository content to `gh-pages`.
 
+## License
+
+[MIT](LICENSE) — free to use, modify and redistribute, including commercially,
+as long as the copyright notice is kept.
+
 ## Disclaimer
 
 This is an unofficial project, not affiliated with Avanza Grupo. All data comes
